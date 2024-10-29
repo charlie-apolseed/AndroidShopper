@@ -252,13 +252,13 @@ fun ShoppingCard(shoppingItem: ShoppingItem,
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-//                Image(
-//                    painter = painterResource(id = shoppingItem.category.getIcon()),
-//                    contentDescription = "Priority",
-//                    modifier = Modifier
-//                        .size(40.dp)
-//                        .padding(end = 10.dp)
-//                )
+                Image(
+                    painter = painterResource(id = shoppingItem.category.getIcon()),
+                    contentDescription = "Priority",
+                    modifier = Modifier
+                        .size(40.dp)
+                        .padding(end = 10.dp)
+                )
 
                 Column(
                     modifier = Modifier.weight(1f)

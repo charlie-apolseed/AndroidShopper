@@ -3,6 +3,7 @@ package com.example.apolinskyshoppingapp.data
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.apolinskyshoppingapp.R
 import java.io.Serializable
 
 
@@ -20,7 +21,18 @@ enum class ShoppingCategory {
     Electronic, Food, Clothing, Book, Luxury, Other;
 
     fun getIcon(): Int {
-        //TODO implement correct image return
-        return 0;
+        if (this == Electronic) {
+            return R.drawable.electronics_icon
+        } else if (this == Food) {
+            return R.drawable.food_icon }
+        else if (this == Clothing) {
+            return R.drawable.clothes_icon }
+        else if (this == Book) {
+            return R.drawable.book_icon }
+        else if (this == Luxury) {
+            return R.drawable.luxury_icon }
+        else {
+            return R.drawable.other_icon
+        }
     }
 }
