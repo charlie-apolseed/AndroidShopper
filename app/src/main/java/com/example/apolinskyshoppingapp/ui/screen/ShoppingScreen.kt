@@ -29,7 +29,9 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -122,6 +124,7 @@ fun ShoppingScreen(
 
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShoppingDialog(
     viewModel: ShoppingModel,
@@ -134,7 +137,9 @@ fun ShoppingDialog(
     var itemPrice by remember { mutableStateOf("") }
     var itemCategory by remember { mutableStateOf(ShoppingCategory.Other) }
 
-
+    val categories = listOf("electronic", "books", "clothes", "luxury", "food", "other")
+    var categoriesExpanded by remember { mutableStateOf(false)}
+    var selectedCategory by remember { mutableStateOf(categories.first()) }
 
     fun validateInput(input: String) {
         try {
@@ -195,6 +200,39 @@ fun ShoppingDialog(
                                 tint = MaterialTheme.colorScheme.error)
                     }
                 )
+                // Dropdown Menu for Category
+                ExposedDropdownMenuBox(
+                    expanded = categoriesExpanded,
+                    onExpandedChange = { categoriesExpanded = !categoriesExpanded }
+                ) {
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = selectedCategory,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category") },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = if (categoriesExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                contentDescription = "Dropdown Arrow"
+                            )
+                        }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = categoriesExpanded,
+                        onDismissRequest = { categoriesExpanded = false }
+                    ) {
+                        categories.forEach { category ->
+                            DropdownMenuItem(
+                                onClick = {
+                                    selectedCategory = category
+                                    categoriesExpanded = false
+                                },
+                                text = { Text(text = category) }
+                            )
+                        }
+                    }
+                }
 
 
 
