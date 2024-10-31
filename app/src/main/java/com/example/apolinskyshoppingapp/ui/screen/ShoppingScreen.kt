@@ -32,6 +32,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +40,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.collectAsState
@@ -58,6 +60,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.apolinskyshoppingapp.data.ShoppingCategory
 import com.example.apolinskyshoppingapp.data.ShoppingItem
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,18 +135,18 @@ fun ShoppingDialog(
 ) {
     var inputErrorState by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf("") }
+    var nameErrorState by remember { mutableStateOf(false) }
+    var nameErrorText by remember { mutableStateOf("") }
     var itemName by remember { mutableStateOf("") }
     var itemDescription by remember { mutableStateOf("") }
     var itemPrice by remember { mutableStateOf("") }
-    var itemCategory by remember { mutableStateOf(ShoppingCategory.Other) }
-
-    val categories = listOf("electronic", "books", "clothes", "luxury", "food", "other")
+    var itemCategory by remember { mutableStateOf(ShoppingCategory.Food) }
     var categoriesExpanded by remember { mutableStateOf(false)}
-    var selectedCategory by remember { mutableStateOf(categories.first()) }
+    var selectedCategory by remember { mutableStateOf("Food") }
 
     fun validateInput(input: String) {
         try {
-            val myNum = input.toInt()
+            input.toInt()
             inputErrorState = false
         } catch (e: Exception) {
             errorText = e.localizedMessage!!
@@ -169,7 +172,23 @@ fun ShoppingDialog(
                 OutlinedTextField(modifier = Modifier.fillMaxWidth(),
                     label = { Text("Name") },
                     value = itemName,
-                    onValueChange = { itemName = it })
+                    onValueChange = {
+                        itemName = it
+                        nameErrorState = itemName.isEmpty()
+                        nameErrorText = if (nameErrorState) "Please enter a name" else ""
+                    },
+                    isError = nameErrorState,
+                    supportingText = {
+                        if (nameErrorState) {
+                            Text(nameErrorText)
+                        }
+                    },
+                    trailingIcon = {
+                        if (nameErrorState)
+                            Icon(Icons.Filled.Warning, "error",
+                                tint = MaterialTheme.colorScheme.error)
+                    }
+                )
                 OutlinedTextField(modifier = Modifier.fillMaxWidth(),
                     label = { Text("Description") },
                     value = itemDescription,
@@ -191,7 +210,7 @@ fun ShoppingDialog(
                     isError = inputErrorState,
                     supportingText = {
                         if (inputErrorState) {
-                            Text(errorText)
+                            Text("Price must be a number")
                         }
                     },
                     trailingIcon = {
@@ -203,36 +222,59 @@ fun ShoppingDialog(
                 // Dropdown Menu for Category
                 ExposedDropdownMenuBox(
                     expanded = categoriesExpanded,
-                    onExpandedChange = { categoriesExpanded = !categoriesExpanded }
-                ) {
-                    OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
+                    onExpandedChange = {categoriesExpanded = it})
+                {
+                    TextField(
                         value = selectedCategory,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Category") },
-                        trailingIcon = {
-                            Icon(
-                                imageVector = if (categoriesExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                                contentDescription = "Dropdown Arrow"
-                            )
-                        }
-                    )
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoriesExpanded)},
+                        modifier = Modifier.menuAnchor())
+
                     ExposedDropdownMenu(
                         expanded = categoriesExpanded,
-                        onDismissRequest = { categoriesExpanded = false }
-                    ) {
-                        categories.forEach { category ->
-                            DropdownMenuItem(
-                                onClick = {
-                                    selectedCategory = category
-                                    categoriesExpanded = false
-                                },
-                                text = { Text(text = category) }
-                            )
-                        }
+                        onDismissRequest = { categoriesExpanded = false })
+                    {
+                        DropdownMenuItem(
+                            text = { Text("Food") },
+                            onClick = {
+                                selectedCategory = "Food"
+                                categoriesExpanded = false
+                                itemCategory = ShoppingCategory.Food}
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Books") },
+                            onClick = {
+                                selectedCategory = "Books"
+                                categoriesExpanded = false
+                                itemCategory = ShoppingCategory.Book}
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Clothes") },
+                            onClick = {
+                                selectedCategory = "Clothes"
+                                categoriesExpanded = false
+                                itemCategory = ShoppingCategory.Clothing
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Luxury") },
+                            onClick = {
+                                selectedCategory = "Luxury"
+                                categoriesExpanded = false
+                                itemCategory = ShoppingCategory.Luxury}
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Other") },
+                            onClick = {
+                                selectedCategory = "Other"
+                                categoriesExpanded = false
+                                itemCategory = ShoppingCategory.Other}
+                        )
+
                     }
                 }
+
 
 
 
@@ -241,18 +283,24 @@ fun ShoppingDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = {
-                        viewModel.addItem(
-                            ShoppingItem(
-                                id = 0,
-                                name = itemName,
-                                description = itemDescription,
-                                category = itemCategory,
-                                price = itemPrice,
-                                status = false
+                        if (itemName != "") {
+                            viewModel.addItem(
+                                ShoppingItem(
+                                    id = 0,
+                                    name = itemName,
+                                    description = itemDescription,
+                                    category = itemCategory,
+                                    price = itemPrice,
+                                    purchased = false
+                                )
                             )
-                        )
+                            onCancel()
+                        } else {
+                            nameErrorState = itemName.isEmpty()
+                            nameErrorText = if (nameErrorState) "Please enter a name" else ""
+                        }
 
-                        onCancel()
+
                     }) {
                         Text("Add Item")
                     }
@@ -278,7 +326,7 @@ fun ShoppingCard(shoppingItem: ShoppingItem,
             .fillMaxWidth()
     ) {
         var expanded by remember { mutableStateOf(false) }
-        var itemChecked by remember { mutableStateOf(shoppingItem.status) }
+        var itemChecked by remember { mutableStateOf(shoppingItem.purchased) }
 
         Column(
             modifier = Modifier
@@ -300,7 +348,7 @@ fun ShoppingCard(shoppingItem: ShoppingItem,
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = shoppingItem.name, textDecoration = if (shoppingItem.status) {
+                        text = shoppingItem.name, textDecoration = if (shoppingItem.purchased) {
                             TextDecoration.LineThrough
                         } else {
                             TextDecoration.None
@@ -312,7 +360,7 @@ fun ShoppingCard(shoppingItem: ShoppingItem,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
-                        checked = shoppingItem.status,
+                        checked = shoppingItem.purchased,
                         onCheckedChange = {
                             itemChecked = it
                             onShoppingChecked(shoppingItem, itemChecked)

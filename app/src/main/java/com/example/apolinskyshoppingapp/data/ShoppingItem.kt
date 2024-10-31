@@ -14,7 +14,7 @@ data class ShoppingItem(
     @ColumnInfo(name = "description") val description:String,
     @ColumnInfo(name = "price") var price: String,
     @ColumnInfo(name = "category") var category:ShoppingCategory,
-    @ColumnInfo(name = "status") var status: Boolean
+    @ColumnInfo(name = "purchased") var purchased: Boolean
 ) : Serializable
 
 enum class ShoppingCategory {
