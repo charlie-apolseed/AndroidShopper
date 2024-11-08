@@ -1,3 +1,22 @@
 <resources>
     <string name="app_name">ApolinskyShoppingApp</string>
+    <string name="ApolinskyShopper">Apolinsky Shopper</string>
+    <string name="apolinsky_shopper">Apolinsky Shopper</string>
+    <string name="add_new_item">Add New Item</string>
+    <string name="delete_all_items">Delete All Items</string>
+    <string name="empty_list">Empty list</string>
+    <string name="add_shopping_item">Add Shopping Item</string>
+    <string name="edit_shopping_item">Edit Shopping Item</string>
+    <string name="name">Name</string>
+    <string name="description">Description</string>
+    <string name="price">Price</string>
+    <string name="please_enter_a_valid_price">Please enter a valid price</string>
+    <string name="food">Food</string>
+    <string name="books">Books</string>
+    <string name="clothes">Clothes</string>
+    <string name="luxury">Luxury</string>
+    <string name="other">Other</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
+    <string name="confirm_delete_all">Are you sure you want to delete all items?</string>
 </resources>

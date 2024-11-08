@@ -4,6 +4,7 @@ package com.example.apolinskyshoppingapp.ui.screen
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.apolinskyshoppingapp.data.ShoppingDAO
 import com.example.apolinskyshoppingapp.data.ShoppingItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,7 +30,9 @@ class ShoppingModel @Inject constructor(
     }
 
     fun removeItem(shoppingItem: ShoppingItem) {
-        //
+        viewModelScope.launch(Dispatchers.IO) {
+            shoppingDAO.delete(shoppingItem)
+        }
     }
 
     fun editItem(originalShoppingItem: ShoppingItem, editedShoppingItem: ShoppingItem) {
@@ -37,10 +40,16 @@ class ShoppingModel @Inject constructor(
     }
 
     fun changeItemState(shoppingItem: ShoppingItem, value: Boolean) {
-        //
+        val updatedItem = shoppingItem.copy()
+        updatedItem.purchased = value
+        viewModelScope.launch(Dispatchers.IO) {
+            shoppingDAO.update(updatedItem)
+        }
     }
 
     fun clearShoppingItems() {
-        //
+        viewModelScope.launch(Dispatchers.IO) {
+            shoppingDAO.deleteAllTodos()
+        }
     }
 }

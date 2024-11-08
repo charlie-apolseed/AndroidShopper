@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Warning
@@ -47,10 +48,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
@@ -58,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.apolinskyshoppingapp.R
 import com.example.apolinskyshoppingapp.data.ShoppingCategory
 import com.example.apolinskyshoppingapp.data.ShoppingItem
 
@@ -68,14 +72,17 @@ fun ShoppingScreen(
     modifier: Modifier = Modifier, viewModel: ShoppingModel = hiltViewModel()
 ) {
     val shoppingList by viewModel.getAllItems().collectAsState(emptyList())
-
-    var showAddDialog by remember { mutableStateOf(false) }
+    var showAddDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteAllDialog by rememberSaveable { mutableStateOf(false) }
+    var shoppingToEdit: ShoppingItem? by rememberSaveable {
+        mutableStateOf(null)
+    }
 
 
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Apolinsky Shopper") },
+            TopAppBar(title = { Text(stringResource(R.string.apolinsky_shopper)) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -89,19 +96,30 @@ fun ShoppingScreen(
                         }
                     ) {
                         Icon(
-                            Icons.Filled.AddCircle, contentDescription = "Add New Item"
+                            Icons.Filled.AddCircle, contentDescription = stringResource(R.string.add_new_item)
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            showDeleteAllDialog = true
+                        }
+                    ) {
+                        Icon(
+                            Icons.Filled.Delete, contentDescription = stringResource(R.string.delete_all_items)
                         )
                     }
                 }
             )
         }
     ) { innerpadding ->
-        Column(modifier = modifier
-            .fillMaxSize()
-            .padding(innerpadding)) {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(innerpadding)
+        ) {
             if (shoppingList.isEmpty()) {
                 Text(
-                    "Empty list", modifier = Modifier
+                    stringResource(R.string.empty_list), modifier = Modifier
                         .fillMaxSize()
                         .wrapContentSize(Alignment.Center)
                 )
@@ -109,8 +127,17 @@ fun ShoppingScreen(
                 LazyColumn {
                     items(shoppingList) { todoItem ->
                         ShoppingCard(todoItem,
-                            onShoppingDelete = {},
-                            onShoppingChecked = {item, checked -> viewModel.changeItemState(item, checked)}
+                            onShoppingDelete = { item -> viewModel.removeItem(item) },
+                            onShoppingEdit = { item ->
+                                shoppingToEdit = item
+                                showAddDialog = true
+                            },
+                            onShoppingChecked = { item, checked ->
+                                viewModel.changeItemState(
+                                    item,
+                                    checked
+                                )
+                            }
                         )
                     }
                 }
@@ -119,38 +146,72 @@ fun ShoppingScreen(
     }
 
     if (showAddDialog) {
-        ShoppingDialog(viewModel,
-            onCancel = { showAddDialog = false }
+        ShoppingDialog(
+            viewModel,
+            shoppingToEdit = shoppingToEdit,
+            onCancel = {
+                showAddDialog = false
+                shoppingToEdit = null
+            },
+        )
+    }
+    if (showDeleteAllDialog) {
+        DeleteAllDialog(
+            onCancel = {
+                showDeleteAllDialog = false
+            },
+            onConfirm = {
+                viewModel.clearShoppingItems()
+            }
         )
     }
 }
 
 
+private const val s = "Edit Shopping Item"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShoppingDialog(
     viewModel: ShoppingModel,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    shoppingToEdit: ShoppingItem? = null
 ) {
-    var inputErrorState by remember { mutableStateOf(false) }
-    var errorText by remember { mutableStateOf("") }
+    var priceErrorState by remember { mutableStateOf(false) }
+    var priceErrorText by remember { mutableStateOf("") }
     var nameErrorState by remember { mutableStateOf(false) }
     var nameErrorText by remember { mutableStateOf("") }
-    var itemName by remember { mutableStateOf("") }
-    var itemDescription by remember { mutableStateOf("") }
-    var itemPrice by remember { mutableStateOf("") }
-    var itemCategory by remember { mutableStateOf(ShoppingCategory.Food) }
-    var categoriesExpanded by remember { mutableStateOf(false)}
-    var selectedCategory by remember { mutableStateOf("Food") }
+
+    var itemName by remember { mutableStateOf(shoppingToEdit?.name ?: "") }
+    var itemDescription by remember { mutableStateOf(shoppingToEdit?.description ?: "") }
+    var itemPrice by remember { mutableStateOf(shoppingToEdit?.price ?: "") }
+    var itemCategory by remember {
+        mutableStateOf(
+            shoppingToEdit?.category ?: ShoppingCategory.Food
+        )
+    }
+    var itemPurchased by remember { mutableStateOf(shoppingToEdit?.purchased ?: false) }
+
+    var categoriesExpanded by remember { mutableStateOf(false) }
+    var selectedCategory by remember {
+        mutableStateOf(
+            shoppingToEdit?.category?.name ?: "Food"
+        )
+    }
 
     fun validateInput(input: String) {
         try {
-            input.toInt()
-            inputErrorState = false
+            input.toFloat()
+            val decimalRegex = Regex("""^\d+(\.\d{1,2})?$""")
+            if (!decimalRegex.matches(input)) {
+                priceErrorState = true
+                priceErrorText = "Input can only have up to two decimal places"
+            } else {
+                priceErrorState = false
+            }
         } catch (e: Exception) {
-            errorText = e.localizedMessage!!
-            inputErrorState = true
+            priceErrorText = e.localizedMessage!!
+            priceErrorState = true
         }
     }
 
@@ -166,11 +227,15 @@ fun ShoppingDialog(
             Column(
                 modifier = Modifier.padding(15.dp)
             ) {
-                Text("Add Item",
-                    style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = if (shoppingToEdit == null) stringResource(R.string.add_shopping_item) else stringResource(
+                        R.string.edit_shopping_item
+                    ),
+                    style = MaterialTheme.typography.titleMedium
+                )
 
                 OutlinedTextField(modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.name)) },
                     value = itemName,
                     onValueChange = {
                         itemName = it
@@ -185,72 +250,80 @@ fun ShoppingDialog(
                     },
                     trailingIcon = {
                         if (nameErrorState)
-                            Icon(Icons.Filled.Warning, "error",
-                                tint = MaterialTheme.colorScheme.error)
+                            Icon(
+                                Icons.Filled.Warning, "error",
+                                tint = MaterialTheme.colorScheme.error
+                            )
                     }
                 )
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Description") },
+                OutlinedTextField(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 15.dp),
+                    label = { Text(stringResource(R.string.description)) },
                     value = itemDescription,
                     onValueChange = { itemDescription = it })
+
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Price") },
+                    label = { Text(stringResource(R.string.price)) },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number
                     ),
 
                     value = itemPrice,
                     onValueChange = {
-                        //if (it.length <=3) {
                         itemPrice = it
                         validateInput(itemPrice)
-                        //}
                     },
-                    isError = inputErrorState,
+                    isError = priceErrorState,
                     supportingText = {
-                        if (inputErrorState) {
-                            Text("Price must be a number")
+                        if (priceErrorState) {
+                            Text(stringResource(R.string.please_enter_a_valid_price))
                         }
                     },
                     trailingIcon = {
-                        if (inputErrorState)
-                            Icon(Icons.Filled.Warning, "error",
-                                tint = MaterialTheme.colorScheme.error)
+                        if (priceErrorState)
+                            Icon(
+                                Icons.Filled.Warning, "error",
+                                tint = MaterialTheme.colorScheme.error
+                            )
                     }
                 )
-                // Dropdown Menu for Category
+
                 ExposedDropdownMenuBox(
                     expanded = categoriesExpanded,
-                    onExpandedChange = {categoriesExpanded = it})
+                    onExpandedChange = { categoriesExpanded = it })
                 {
                     TextField(
                         value = selectedCategory,
                         onValueChange = {},
                         readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoriesExpanded)},
-                        modifier = Modifier.menuAnchor())
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoriesExpanded) },
+                        modifier = Modifier.menuAnchor()
+                    )
 
                     ExposedDropdownMenu(
                         expanded = categoriesExpanded,
                         onDismissRequest = { categoriesExpanded = false })
                     {
                         DropdownMenuItem(
-                            text = { Text("Food") },
+                            text = { Text(stringResource(R.string.food)) },
                             onClick = {
                                 selectedCategory = "Food"
                                 categoriesExpanded = false
-                                itemCategory = ShoppingCategory.Food}
+                                itemCategory = ShoppingCategory.Food
+                            }
                         )
                         DropdownMenuItem(
-                            text = { Text("Books") },
+                            text = { Text(stringResource(R.string.books)) },
                             onClick = {
                                 selectedCategory = "Books"
                                 categoriesExpanded = false
-                                itemCategory = ShoppingCategory.Book}
+                                itemCategory = ShoppingCategory.Book
+                            }
                         )
                         DropdownMenuItem(
-                            text = { Text("Clothes") },
+                            text = { Text(stringResource(R.string.clothes)) },
                             onClick = {
                                 selectedCategory = "Clothes"
                                 categoriesExpanded = false
@@ -258,18 +331,20 @@ fun ShoppingDialog(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Luxury") },
+                            text = { Text(stringResource(R.string.luxury)) },
                             onClick = {
                                 selectedCategory = "Luxury"
                                 categoriesExpanded = false
-                                itemCategory = ShoppingCategory.Luxury}
+                                itemCategory = ShoppingCategory.Luxury
+                            }
                         )
                         DropdownMenuItem(
-                            text = { Text("Other") },
+                            text = { Text(stringResource(R.string.other)) },
                             onClick = {
                                 selectedCategory = "Other"
                                 categoriesExpanded = false
-                                itemCategory = ShoppingCategory.Other}
+                                itemCategory = ShoppingCategory.Other
+                            }
                         )
 
                     }
@@ -280,29 +355,100 @@ fun ShoppingDialog(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
                 ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Start,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Purchased")
+                        Checkbox(
+                            onCheckedChange = { itemPurchased = it },
+                            checked = itemPurchased,
+                        )
+                    }
                     TextButton(onClick = {
                         if (itemName != "") {
-                            viewModel.addItem(
-                                ShoppingItem(
-                                    id = 0,
-                                    name = itemName,
-                                    description = itemDescription,
-                                    category = itemCategory,
-                                    price = itemPrice,
-                                    purchased = false
-                                )
-                            )
-                            onCancel()
+                            if (itemPrice != "") {
+                                if (shoppingToEdit != null) {
+                                    viewModel.editItem(
+                                        originalShoppingItem = shoppingToEdit,
+                                        editedShoppingItem = ShoppingItem(
+                                            id = 0,
+                                            name = itemName,
+                                            description = itemDescription,
+                                            category = itemCategory,
+                                            price = itemPrice,
+                                            purchased = itemPurchased
+                                        )
+                                    )
+                                } else {
+                                    viewModel.addItem(
+                                        ShoppingItem(
+                                            id = 0,
+                                            name = itemName,
+                                            description = itemDescription,
+                                            category = itemCategory,
+                                            price = itemPrice,
+                                            purchased = itemPurchased
+                                        )
+                                    )
+                                }
+                                onCancel()
+                            } else {
+                                priceErrorState = itemPrice.isEmpty()
+                                priceErrorText = if (priceErrorState) "Please enter a price" else ""
+                            }
                         } else {
                             nameErrorState = itemName.isEmpty()
                             nameErrorText = if (nameErrorState) "Please enter a name" else ""
+                            priceErrorState = itemPrice.isEmpty()
+                            priceErrorText =
+                                if (nameErrorState) "Please enter a valid price" else "" //TODO how do I extract these?
                         }
 
-
                     }) {
-                        Text("Add Item")
+                        Text(stringResource(R.string.confirm))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DeleteAllDialog(
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Dialog(onDismissRequest = {
+        onCancel()
+    }) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(size = 6.dp)
+        ) {
+            Column(modifier = Modifier.padding(15.dp)) {
+                Text(
+                    text = stringResource(R.string.delete_all_items),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(stringResource(R.string.confirm_delete_all))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(onClick = { onCancel() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    TextButton(onClick = {
+                        onConfirm()
+                        onCancel()
+                    }) {
+                        Text(stringResource(R.string.confirm))
                     }
                 }
             }
@@ -312,9 +458,11 @@ fun ShoppingDialog(
 
 
 @Composable
-fun ShoppingCard(shoppingItem: ShoppingItem,
-             onShoppingDelete: (ShoppingItem) -> Unit,
-             onShoppingChecked: (ShoppingItem, checked : Boolean) -> Unit
+fun ShoppingCard(
+    shoppingItem: ShoppingItem,
+    onShoppingDelete: (ShoppingItem) -> Unit,
+    onShoppingEdit: (ShoppingItem) -> Unit,
+    onShoppingChecked: (ShoppingItem, checked: Boolean) -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -338,7 +486,7 @@ fun ShoppingCard(shoppingItem: ShoppingItem,
             ) {
                 Image(
                     painter = painterResource(id = shoppingItem.category.getIcon()),
-                    contentDescription = "Priority",
+                    contentDescription = "Icon",
                     modifier = Modifier
                         .size(40.dp)
                         .padding(end = 10.dp)
@@ -353,6 +501,12 @@ fun ShoppingCard(shoppingItem: ShoppingItem,
                         } else {
                             TextDecoration.None
                         }
+                    )
+                    Text(
+                        text = "$ " + shoppingItem.price,
+                        style = TextStyle(
+                            fontSize = 12.sp,
+                        )
                     )
                 }
 
@@ -374,6 +528,16 @@ fun ShoppingCard(shoppingItem: ShoppingItem,
                         },
                         tint = Color.Red
                     )
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Edit",
+                        modifier = Modifier
+                            .padding(start = 10.dp)
+                            .clickable {
+                                onShoppingEdit(shoppingItem)
+                            },
+                        tint = Color.Black
+                    )
                     IconButton(onClick = { expanded = !expanded }) {
                         Icon(
                             imageVector = if (expanded) Icons.Filled.KeyboardArrowUp
@@ -391,12 +555,6 @@ fun ShoppingCard(shoppingItem: ShoppingItem,
             if (expanded) {
                 Text(
                     text = shoppingItem.description,
-                    style = TextStyle(
-                        fontSize = 12.sp,
-                    )
-                )
-                Text(
-                    text = shoppingItem.price,
                     style = TextStyle(
                         fontSize = 12.sp,
                     )
